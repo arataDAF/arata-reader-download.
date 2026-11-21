@@ -49,7 +49,7 @@ jobs:
             const embed = {
               title: '📚 ' + name,
               url: release.html_url,
-              color: 0xED2546,
+              color: 0x8B5CF6,
               description: clip(release.body?.trim() || 'A new ArataReader update is available.', 3500),
               fields: [
                 { name: 'Version', value: clip(release.tag_name, 100), inline: true },
@@ -68,12 +68,19 @@ jobs:
               ['DISCORD_ICON_URL', 'thumbnail'],
               ['DISCORD_BANNER_URL', 'image'],
             ]) {
-              const value = process.env[variable];
+              const defaults = {
+                DISCORD_ICON_URL: 'https://raw.githubusercontent.com/arataDAF/arata-reader-download./main/.github/assets/logo-violet.png',
+                DISCORD_BANNER_URL: 'https://raw.githubusercontent.com/arataDAF/arata-reader-download./main/.github/assets/update-log-violet.png',
+              };
+              const value = process.env[variable] || defaults[variable];
               if (!value) continue;
               const url = new URL(value);
               if (url.protocol !== 'https:') throw new Error(variable + ' must be a public HTTPS image URL.');
               embed[field] = { url: value };
-              if (field === 'thumbnail') payload.avatar_url = value;
+              if (field === 'thumbnail') {
+                payload.avatar_url = value;
+                embed.footer.icon_url = value;
+              }
             }
             const response = await fetch(endpoint, {
               method: 'POST',
