@@ -29,7 +29,7 @@ jobs:
               name: 'ArataReader — TEST announcement',
               tag_name: 'TEST',
               html_url: 'https://github.com/arataDAF/arata-reader-download./releases/latest',
-              body: '**This is a test. No new app version was published.**\n\n**Added**\n+ Automatic Discord release announcements\n\n**Fixed**\n+ Example fix: smoother chapter loading\n\n**Removed**\n- Example: outdated reader option',
+              body: '**This is a test. No new app version was published.**\n\n**Added (1)**\n```\n[+] Automatic Discord release announcements\n```\n\n**Fixed (1)**\n```\n[~] Example fix: smoother chapter loading\n```\n\n**Removed (1)**\n```\n[-] Example: outdated reader option\n```',
               published_at: new Date().toISOString(),
               assets: [],
             } : JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).release;
@@ -54,6 +54,7 @@ jobs:
               fields: [
                 { name: 'Version', value: clip(release.tag_name, 100), inline: true },
                 { name: 'How to update', value: 'Open ArataReader and check for updates in the app.' },
+                { name: '⏳ Update availability', value: 'Please allow 30 minutes to 1 hour for the update to appear in ArataReader.' },
               ],
               footer: { text: 'ArataReader • Update log' },
               timestamp: release.published_at,
