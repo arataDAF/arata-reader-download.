@@ -1,6 +1,7 @@
 name: Announce release on Discord
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
@@ -23,7 +24,15 @@ jobs:
           const fs = require('node:fs');
           
           async function main() {
-            const release = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).release;
+            const isTest = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch';
+            const release = isTest ? {
+              name: 'ArataReader — TEST announcement',
+              tag_name: 'TEST',
+              html_url: 'https://github.com/arataDAF/arata-reader-download./releases/latest',
+              body: '**This is a test. No new app version was published.**\n\n**Added**\n+ Automatic Discord release announcements\n\n**Fixed**\n+ Example fix: smoother chapter loading\n\n**Removed**\n- Example: outdated reader option',
+              published_at: new Date().toISOString(),
+              assets: [],
+            } : JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).release;
             if (!release || release.draft) throw new Error('Expected a published release.');
             const webhook = process.env.DISCORD_WEBHOOK_URL;
             if (!webhook) throw new Error('Add the DISCORD_WEBHOOK_URL repository Actions secret.');
@@ -34,7 +43,7 @@ jobs:
             }
             endpoint.searchParams.set('wait', 'true');
             const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + '…' : text;
-            const role = process.env.DISCORD_ROLE_ID || '';
+            const role = isTest ? '' : (process.env.DISCORD_ROLE_ID || '');
             if (role && !/^\d+$/.test(role)) throw new Error('DISCORD_ROLE_ID must contain only the role ID.');
             const name = clip(release.name || release.tag_name, 220);
             const apk = (release.assets || []).find(asset => /\.apk$/i.test(asset.name));
@@ -45,7 +54,7 @@ jobs:
               description: clip(release.body?.trim() || 'A new ArataReader update is available.', 3500),
               fields: [
                 { name: 'Version', value: clip(release.tag_name, 100), inline: true },
-                { name: 'Channel', value: release.prerelease ? 'Pre-release' : 'Stable', inline: true },
+                { name: 'Channel', value: isTest ? 'Test' : (release.prerelease ? 'Pre-release' : 'Stable'), inline: true },
                 { name: 'Download', value: apk
                   ? '[Download APK](' + apk.browser_download_url + ')'
                   : '[View release downloads](' + release.html_url + ')' },
