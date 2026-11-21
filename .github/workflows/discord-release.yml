@@ -70,7 +70,7 @@ jobs:
             ]) {
               const defaults = {
                 DISCORD_ICON_URL: 'https://raw.githubusercontent.com/arataDAF/arata-reader-download./main/.github/assets/logo-violet.png',
-                DISCORD_BANNER_URL: 'https://raw.githubusercontent.com/arataDAF/arata-reader-download./main/.github/assets/update-log-violet.png',
+                DISCORD_BANNER_URL: 'https://raw.githubusercontent.com/arataDAF/arata-reader-download./main/.github/assets/update-log-violet.gif',
               };
               const value = process.env[variable] || defaults[variable];
               if (!value) continue;
