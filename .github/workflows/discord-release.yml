@@ -46,7 +46,6 @@ jobs:
             const role = isTest ? '' : (process.env.DISCORD_ROLE_ID || '');
             if (role && !/^\d+$/.test(role)) throw new Error('DISCORD_ROLE_ID must contain only the role ID.');
             const name = clip(release.name || release.tag_name, 220);
-            const apk = (release.assets || []).find(asset => /\.apk$/i.test(asset.name));
             const embed = {
               title: '📚 ' + name,
               url: release.html_url,
@@ -54,10 +53,7 @@ jobs:
               description: clip(release.body?.trim() || 'A new ArataReader update is available.', 3500),
               fields: [
                 { name: 'Version', value: clip(release.tag_name, 100), inline: true },
-                { name: 'Channel', value: isTest ? 'Test' : (release.prerelease ? 'Pre-release' : 'Stable'), inline: true },
-                { name: 'Download', value: apk
-                  ? '[Download APK](' + apk.browser_download_url + ')'
-                  : '[View release downloads](' + release.html_url + ')' },
+                { name: 'How to update', value: 'Open ArataReader and check for updates in the app.' },
               ],
               footer: { text: 'ArataReader • Update log' },
               timestamp: release.published_at,
