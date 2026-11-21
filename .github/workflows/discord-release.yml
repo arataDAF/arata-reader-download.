@@ -1,0 +1,88 @@
+name: Announce release on Discord
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Post ArataReader update
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_ROLE_ID: ${{ vars.DISCORD_ROLE_ID }}
+          DISCORD_ICON_URL: ${{ vars.DISCORD_ICON_URL }}
+          DISCORD_BANNER_URL: ${{ vars.DISCORD_BANNER_URL }}
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          
+          async function main() {
+            const release = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8')).release;
+            if (!release || release.draft) throw new Error('Expected a published release.');
+            const webhook = process.env.DISCORD_WEBHOOK_URL;
+            if (!webhook) throw new Error('Add the DISCORD_WEBHOOK_URL repository Actions secret.');
+            const endpoint = new URL(webhook);
+            if (endpoint.protocol !== 'https:' || endpoint.hostname !== 'discord.com' ||
+                !/^\/api(?:\/v\d+)?\/webhooks\/\d+\/[^/]+$/.test(endpoint.pathname)) {
+              throw new Error('DISCORD_WEBHOOK_URL must be a Discord webhook URL.');
+            }
+            endpoint.searchParams.set('wait', 'true');
+            const clip = (text, max) => text.length > max ? text.slice(0, max - 1) + '…' : text;
+            const role = process.env.DISCORD_ROLE_ID || '';
+            if (role && !/^\d+$/.test(role)) throw new Error('DISCORD_ROLE_ID must contain only the role ID.');
+            const name = clip(release.name || release.tag_name, 220);
+            const apk = (release.assets || []).find(asset => /\.apk$/i.test(asset.name));
+            const embed = {
+              title: '📚 ' + name,
+              url: release.html_url,
+              color: 0xED2546,
+              description: clip(release.body?.trim() || 'A new ArataReader update is available.', 3500),
+              fields: [
+                { name: 'Version', value: clip(release.tag_name, 100), inline: true },
+                { name: 'Channel', value: release.prerelease ? 'Pre-release' : 'Stable', inline: true },
+                { name: 'Download', value: apk
+                  ? '[Download APK](' + apk.browser_download_url + ')'
+                  : '[View release downloads](' + release.html_url + ')' },
+              ],
+              footer: { text: 'ArataReader • Update log' },
+              timestamp: release.published_at,
+            };
+            const payload = {
+              username: 'ArataReader Updates',
+              allowed_mentions: { parse: [], roles: role ? [role] : [] },
+              embeds: [embed],
+            };
+            if (role) payload.content = '<@&' + role + '>';
+            for (const [variable, field] of [
+              ['DISCORD_ICON_URL', 'thumbnail'],
+              ['DISCORD_BANNER_URL', 'image'],
+            ]) {
+              const value = process.env[variable];
+              if (!value) continue;
+              const url = new URL(value);
+              if (url.protocol !== 'https:') throw new Error(variable + ' must be a public HTTPS image URL.');
+              embed[field] = { url: value };
+              if (field === 'thumbnail') payload.avatar_url = value;
+            }
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              signal: AbortSignal.timeout(30000),
+            });
+            if (!response.ok) throw new Error('Discord rejected the announcement (HTTP ' + response.status + ').');
+            console.log('Discord release announcement sent.');
+          }
+          
+          main().catch(() => {
+            // Network errors can contain the secret webhook URL.
+            console.error('Announcement failed. Check the webhook secret, optional variables, and Discord availability.');
+            process.exitCode = 1;
+          });
+          NODE
