@@ -83,14 +83,37 @@ jobs:
                 embed.footer.icon_url = value;
               }
             }
+            const headers = {};
+            let body;
+            if (!process.env.DISCORD_BANNER_URL) {
+              const bannerResponse = await fetch(embed.image.url, {
+                signal: AbortSignal.timeout(30000),
+              });
+              if (!bannerResponse.ok) throw new Error('Banner download failed.');
+              const bannerBytes = await bannerResponse.arrayBuffer();
+              const signature = new TextDecoder().decode(bannerBytes.slice(0, 6));
+              if (!['GIF87a', 'GIF89a'].includes(signature) || bannerBytes.byteLength > 9500000) {
+                throw new Error('Banner must be a GIF smaller than 9.5 MB.');
+              }
+              embed.image = { url: 'attachment://arata-update-log.gif' };
+              payload.attachments = [{ id: 0, filename: 'arata-update-log.gif' }];
+              body = new FormData();
+              body.set('payload_json', JSON.stringify(payload));
+              body.set('files[0]', new Blob([bannerBytes], { type: 'image/gif' }), 'arata-update-log.gif');
+            } else {
+              headers['Content-Type'] = 'application/json';
+              body = JSON.stringify(payload);
+            }
             const response = await fetch(endpoint, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload),
+              headers,
+              body,
               signal: AbortSignal.timeout(30000),
             });
             if (!response.ok) throw new Error('Discord rejected the announcement (HTTP ' + response.status + ').');
-            console.log('Discord release announcement sent.');
+            const posted = await response.json();
+            console.log('Discord release announcement sent. Message ID: ' + posted.id);
+            console.log('Banner attached: ' + Boolean(posted.attachments?.length));
           }
           
           main().catch(() => {
